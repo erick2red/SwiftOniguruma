@@ -535,7 +535,7 @@ final class SwiftOnigurumaTests: XCTestCase {
         }
 
         // swiftlint:disable trailing_semicolon
-        // Hint: Copied from test_back.c
+        // Hint: Copied from test_options.c
         x2(.ignoreCase, "a", "A", 0, 1);
         /* KELVIN SIGN */
         x2(.ignoreCase, "K", "k", 0, 1);
