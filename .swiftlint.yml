@@ -1,0 +1,9 @@
+disabled_rules:
+  - trailing_comma
+  - implicit_getter
+
+line_length: 120
+
+identifier_name:
+  excluded: # excluded via string array
+    - i
