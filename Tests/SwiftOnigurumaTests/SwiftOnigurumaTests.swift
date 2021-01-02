@@ -1837,6 +1837,7 @@ final class SwiftOnigurumaTests: XCTestCase {
         ("testSearchEmpty", testSearchEmpty),
         ("testBack", testBack),
         ("testOptions", testOptions),
+        ("testUtf8", testUtf8),
         ("testScan", testScan),
         ("testVersion", testVersion),
     ]
