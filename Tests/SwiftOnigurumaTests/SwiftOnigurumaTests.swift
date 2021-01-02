@@ -72,8 +72,8 @@ final class SwiftOnigurumaTests: XCTestCase {
 
             let match = try? regex?.search(in: string, direction: .backward)
             XCTAssertNotNil(match)
-            XCTAssert(match?.isEmpty == false)
-            XCTAssert((match?[0])! == (matchStart, matchEnd))
+            XCTAssert(match!.isEmpty == false)
+            XCTAssert(match![0] == (matchStart, matchEnd))
         }
 
         func n(_ pattern: String, _ string: String) {
