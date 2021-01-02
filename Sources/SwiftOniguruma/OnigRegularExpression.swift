@@ -1,98 +1,142 @@
+//
+//  OnigRegularExpression.swift
+//
+//
+//  Created by Erick Perez on 12/4/20.
+//
+
 import Foundation
 
 import Darwin
 import coniguruma
 
+public typealias ScanCallback = (Int, Int, OnigMatches) -> Bool
+
+public enum OnigSearchDirection {
+    case forward
+    case backward
+}
+
 public final class OnigRegularExpression {
-    static var initialized: Bool = false
+    let regex: OnigRegex
+    let options: OnigOption
 
-    var regex: OnigRegex?
+    public init(pattern string: String, options: OnigOption = .none) throws {
+        Self.initialize()
 
-    public class func initialize() {
-        var encoding = OnigEncodingUTF8
-
-        if !initialized {
-            withUnsafeMutablePointer(to: &encoding, { useEncodings in
-                var encs: UnsafeMutablePointer<OnigEncodingTypeST>? = useEncodings
-                _ = onig_initialize(&encs, 1)
-            })
-
-            initialized = true
-        }
-    }
-
-    public init(from pattern: String) throws {
-        if !Self.initialized {
-            Self.initialize()
-        }
-
-        guard let patternChars = pattern.cString(using: .utf8)?.map({ c in UInt8(c) }) else {
-            throw StandardError.invalidArgument("Pattern \"\(pattern)\" can't be processed")
-        }
-
-        regex = nil
-
-        try patternChars.withUnsafeBufferPointer({ patternPointer in
-            var encoding = OnigEncodingUTF8
+        let patternChars = "\(string)\0".utf8.map({ char in UInt8(char) })
+        regex = try patternChars.withUnsafeBufferPointer({ patternPointer in
+            var regexPointer: OnigRegex?
             var error = OnigErrorInfo()
 
-            let result = onig_new(&regex,
+            let result = onig_new(&regexPointer,
                                   patternPointer.baseAddress,
-                                  patternPointer.baseAddress?.advanced(by: patternPointer.count),
-                                  OnigOptionType(),
-                                  &encoding,
+                                  patternPointer.baseAddress?.advanced(by: patternPointer.count - 1),
+                                  options.value,
+                                  Encodings.utf8,
                                   OnigDefaultSyntax,
                                   &error)
 
             if result != ONIG_NORMAL {
                 throw StandardError.initializationFailed("Initialization failed with error: \(result)")
             }
+
+            return regexPointer!
         })
+
+        self.options = options
     }
 
     deinit {
         onig_free(regex)
     }
 
-    public func search(in source: String) throws {
-        guard let sourceChars = source.cString(using: .utf8)?.map({ c in UInt8(c) }) else {
-            throw StandardError.invalidArgument("Source \"\(source)\" can't be processed")
-        }
+    public func search(in source: String, direction: OnigSearchDirection = .forward) throws-> OnigMatches {
+        let sourceChars = "\(source)\0".utf8.map({ char in UInt8(char) })
 
         let region = onig_region_new()
         defer {
             onig_region_free(region, 1 /* 1:free self, 0:free contents only */)
         }
 
-        try sourceChars.withUnsafeBufferPointer({ charsPointer in
+        return try sourceChars.withUnsafeBufferPointer({ charsPointer in
+            let start: UnsafePointer<UInt8>?
+            let range: UnsafePointer<UInt8>?
+
+            if direction == .forward {
+                start = charsPointer.baseAddress
+                range = charsPointer.baseAddress?.advanced(by: charsPointer.count - 1)
+            } else {
+                start = charsPointer.baseAddress?.advanced(by: charsPointer.count - 1)
+                range = charsPointer.baseAddress
+            }
+
             let result = onig_search(regex,
                                      charsPointer.baseAddress,
-                                     charsPointer.baseAddress?.advanced(by: charsPointer.count),
-                                     charsPointer.baseAddress,
-                                     charsPointer.baseAddress?.advanced(by: charsPointer.count),
+                                     charsPointer.baseAddress?.advanced(by: charsPointer.count - 1),
+                                     start,
+                                     range,
                                      region,
-                                     ONIG_OPTION_NONE)
+                                     options.value)
 
             if result >= 0 {
                 guard let region = region else {
-                    throw StandardError.generic("onig_search failed with: \(result) but region is nil")
+                    throw StandardError.generic("onig_search failed region nil but result is: \(result).")
                 }
 
-                print("[\(#function)#\(#line)] match found at: \(result)")
-                let numberOfMatchers = region.pointee.num_regs
-                for i in 0..<numberOfMatchers {
-                    let start = region.pointee.beg[Int(i)]
-                    let end = region.pointee.end[Int(i)]
-                    print("Match[\(i)] starts at: \(start) and ends at: \(end)")
-                }
+                return OnigMatches(region)
+            } else if result != ONIG_MISMATCH {
+                throw StandardError.generic("onig_search failed with error: \(result)")
             }
-            else if result == ONIG_MISMATCH {
-                //FIXME: return not found
-                throw StandardError.initializationFailed("Initialization failed with error: \(result)")
-            } else {
-                throw StandardError.generic("Initialization failed with error: \(result)")
-            }
+
+            return OnigMatches.empty()
         })
+    }
+
+    public func scan(source string: String, callback delegate: ScanCallback) throws -> Int {
+        let stringChars = "\(string)\0".utf8.map({ char in UInt8(char) })
+
+        let region = onig_region_new()
+        defer { onig_region_free(region, 1 /* 1:free self, 0:free contents only */) }
+
+        return try stringChars.withUnsafeBufferPointer({ charsPointer in
+            return try withoutActuallyEscaping(delegate, do: { delegate in
+                return try withUnsafePointer(to: delegate, { delegate in
+                    let delegate = UnsafeMutablePointer(mutating: delegate)
+
+                    let matches = onig_scan(regex,
+                                            charsPointer.baseAddress,
+                                            charsPointer.baseAddress?.advanced(by: charsPointer.count - 1),
+                                            region,
+                                            ONIG_OPTION_NONE,
+                                            { (number, position, matchRegion, callback) -> Int32 in
+                                                guard let callback = callback?.load(as: ScanCallback.self) else {
+                                                    print("[\(#function)#\(#line)] Do nothing. No callback")
+                                                    return 1
+                                                }
+
+                                                let number = Int(number)
+                                                let position = Int(position)
+                                                let proceed = callback(number, position, OnigMatches(matchRegion))
+                                                return proceed ? 0 : 1
+                                            },
+                                            delegate)
+
+                    if matches >= 0 {
+                        return Int(matches)
+                    } else if matches != ONIG_MISMATCH {
+                        throw StandardError.generic("onig_scan failed with error: \(matches)")
+                    }
+
+                    return 0
+                })
+            })
+        })
+    }
+
+    public class func initialize() {
+        var encs: UnsafeMutablePointer<OnigEncodingTypeST>? = Encodings.utf8
+        _ = onig_initialize(&encs, 1)
     }
 
     public static var version: String {
