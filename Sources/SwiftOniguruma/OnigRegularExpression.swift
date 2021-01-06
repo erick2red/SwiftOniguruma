@@ -18,7 +18,7 @@ public enum OnigSearchDirection {
 }
 
 public final class OnigRegularExpression {
-    internal var pointer: OnigRegex?
+    var pointer: OnigRegex?
     let pattern: String
     let options: OnigOption
 
@@ -57,7 +57,7 @@ public final class OnigRegularExpression {
         onig_free(pointer)
     }
 
-    internal func removedFromSet() throws {
+    func removedFromSet() throws {
         pointer = try createRegex(from: pattern)
     }
 
