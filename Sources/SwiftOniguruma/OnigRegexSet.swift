@@ -28,6 +28,7 @@ public final class OnigRegexSet {
     }
 
     deinit {
+        expressions.forEach({ regex in try? regex.removedFromSet() })
         expressions.removeAll()
 
         onig_regset_free(pointer)
@@ -36,7 +37,6 @@ public final class OnigRegexSet {
     public func add(_ regex: OnigRegularExpression) throws {
         let result = onig_regset_add(pointer, regex.pointer)
         if result == ONIG_NORMAL {
-            regex.register()
             expressions.append(regex)
         } else if result != ONIG_NORMAL {
             throw StandardError.generic("Add failed with error: \(result)")

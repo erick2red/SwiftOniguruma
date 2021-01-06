@@ -18,17 +18,13 @@ public enum OnigSearchDirection {
 }
 
 public final class OnigRegularExpression {
-    internal let pointer: OnigRegex
+    internal var pointer: OnigRegex?
     let pattern: String
     let options: OnigOption
-    var includedInASet: Bool
 
-    public init(pattern string: String, options: OnigOption = .none) throws {
-        Self.initialize()
-
-        pattern = string
-        let patternChars = "\(string)\0".utf8.map({ char in UInt8(char) })
-        pointer = try patternChars.withUnsafeBufferPointer({ patternPointer in
+    private func createRegex(from pattern: String) throws -> OnigRegex {
+        let patternChars = "\(pattern)\0".utf8.map({ char in UInt8(char) })
+        return try patternChars.withUnsafeBufferPointer({ patternPointer in
             var regexPointer: OnigRegex?
             var error = OnigErrorInfo()
 
@@ -46,19 +42,23 @@ public final class OnigRegularExpression {
 
             return regexPointer!
         })
+    }
 
+    public init(pattern string: String, options: OnigOption = .none) throws {
+        Self.initialize()
+
+        pattern = string
         self.options = options
-        includedInASet = false
+
+        pointer = try createRegex(from: pattern)
     }
 
     deinit {
-        if !includedInASet {
-            onig_free(pointer)
-        }
+        onig_free(pointer)
     }
 
-    internal func register() {
-        includedInASet = true
+    internal func removedFromSet() throws {
+        pointer = try createRegex(from: pattern)
     }
 
     public func search(in source: String, direction: OnigSearchDirection = .forward) throws-> OnigMatches {
