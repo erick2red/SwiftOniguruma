@@ -9,10 +9,10 @@ final class SwiftOnigurumaTests: XCTestCase {
 
         let matches = try? regex?.search(in: "zzzzaffffffffb")
         XCTAssertNotNil(matches)
-        XCTAssert(matches?.isEmpty == false)
-        XCTAssert(matches?.count == 2)
-        XCTAssert((matches?[0])! == (4, 14))
-        XCTAssert((matches?[1])! == (5, 13))
+        XCTAssert(matches!.isEmpty == false)
+        XCTAssert(matches!.count == 2)
+        XCTAssert(matches![0] == (4, 14))
+        XCTAssert(matches![1] == (5, 13))
     }
 
     func testSearchEmpty() {
@@ -21,9 +21,9 @@ final class SwiftOnigurumaTests: XCTestCase {
 
         let matches = try? regex?.search(in: "a", direction: .backward)
         XCTAssertNotNil(matches)
-        XCTAssert(matches?.isEmpty == false)
-        XCTAssert(matches?.count == 1)
-        XCTAssert((matches?[0])! == (1, 1))
+        XCTAssert(matches!.isEmpty == false)
+        XCTAssert(matches!.count == 1)
+        XCTAssert(matches![0] == (1, 1))
     }
 
     func testScan() {
@@ -1041,9 +1041,13 @@ final class SwiftOnigurumaTests: XCTestCase {
         x2("(?:(?<x>)|(?<x>efg))\\k<x>", "", 0, 0);
         x2("(?:(?<x>abc)|(?<x>efg))\\k<x>", "abcefgefg", 3, 9);
         n("(?:(?<x>abc)|(?<x>efg))\\k<x>", "abcefg");
+
+        // swiftlint:disable line_length
         x2("(?:(?<n1>.)|(?<n1>..)|(?<n1>...)|(?<n1>....)|(?<n1>.....)|(?<n1>......)|(?<n1>.......)|(?<n1>........)|(?<n1>.........)|(?<n1>..........)|(?<n1>...........)|(?<n1>............)|(?<n1>.............)|(?<n1>..............))\\k<n1>$", "a-pyumpyum", 2, 10);
         x3("(?:(?<n1>.)|(?<n1>..)|(?<n1>...)|(?<n1>....)|(?<n1>.....)|(?<n1>......)|(?<n1>.......)|(?<n1>........)|(?<n1>.........)|(?<n1>..........)|(?<n1>...........)|(?<n1>............)|(?<n1>.............)|(?<n1>..............))\\k<n1>$", "xxxxabcdefghijklmnabcdefghijklmn", 4, 18, 14);
         x3("(?<name1>)(?<name2>)(?<name3>)(?<name4>)(?<name5>)(?<name6>)(?<name7>)(?<name8>)(?<name9>)(?<name10>)(?<name11>)(?<name12>)(?<name13>)(?<name14>)(?<name15>)(?<name16>aaa)(?<name17>)$", "aaa", 0, 3, 16);
+        // swiftlint:enable line_length
+
         x2("(?<foo>a|\\(\\g<foo>\\))", "a", 0, 1);
         x2("(?<foo>a|\\(\\g<foo>\\))", "((((((a))))))", 0, 13);
         x3("(?<foo>a|\\(\\g<foo>\\))", "((((((((a))))))))", 0, 17, 1);
@@ -1570,8 +1574,8 @@ final class SwiftOnigurumaTests: XCTestCase {
         n("(?P:\\B)", "h");
 
         x2("\\p{InBasicLatin}", "\u{41}", 0, 1);
-        //x2("\\p{Grapheme_Cluster_Break_Regional_Indicator}", "\xF0\x9F\x87\xA9", 0, 4);
-        //n("\\p{Grapheme_Cluster_Break_Regional_Indicator}",  "\xF0\x9F\x87\xA5");
+        // x2("\\p{Grapheme_Cluster_Break_Regional_Indicator}", "\xF0\x9F\x87\xA9", 0, 4);
+        // n("\\p{Grapheme_Cluster_Break_Regional_Indicator}",  "\xF0\x9F\x87\xA5");
 
         // extended grapheme cluster
 
@@ -1628,19 +1632,22 @@ final class SwiftOnigurumaTests: XCTestCase {
 
         x2("c.*\\b", "abc", 2, 3);
         x2("\\b.*abc.*\\b", "abc", 0, 3);
+        // swiftlint:disable line_length
         x2("((?()0+)+++(((0\\g<0>)0)|())++++((?(1)(0\\g<0>))++++++0*())++++((?(1)(0\\g<1>)+)++++++++++*())++++((?(1)((0)\\g<0>)+)++())+0++*+++(((0\\g<0>))*())++++((?(1)(0\\g<0>)+)++++++++++*|)++++*+++((?(1)((0)\\g<0>)+)+++++++++())++*|)++++((?()0))|", "abcde", 0, 0); // #139
 
         n("(*FAIL)", "abcdefg");
         n("abcd(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)(*FAIL)", "abcdefg");
+        // swiftlint:enable line_length
+
         x2("(?:[ab]|(*MAX{2}).)*", "abcbaaccaaa", 0, 7);
         x2("(?:(*COUNT[AB]{X})[ab]|(*COUNT[CD]{X})[cd])*(*CMP{AB,<,CD})",
            "abababcdab", 5, 8);
         x2("(?(?{....})123|456)", "123", 0, 3);
         x2("(?(*FAIL)123|456)", "456", 0, 3);
 
-        x2("\\g'0'++{,0}",   "abcdefgh", 0, 0);
-        x2("\\g'0'++{,0}?",  "abcdefgh", 0, 0);
-        x2("\\g'0'++{,0}b",  "abcdefgh", 1, 2);
+        x2("\\g'0'++{,0}", "abcdefgh", 0, 0);
+        x2("\\g'0'++{,0}?", "abcdefgh", 0, 0);
+        x2("\\g'0'++{,0}b", "abcdefgh", 1, 2);
         x2("\\g'0'++{,0}?def", "abcdefgh", 3, 6);
         x2("a{1,3}?", "aaa", 0, 1);
         x2("a{3}", "aaa", 0, 3);
@@ -1651,7 +1658,7 @@ final class SwiftOnigurumaTests: XCTestCase {
         x2("a{1,3}+", "aaaaaa", 0, 6);
         x2("a{3}+", "aaaaaa", 0, 6);
         x2("a{3,3}+", "aaaaaa", 0, 6);
-        n("a{2,3}?",  "a");
+        n("a{2,3}?", "a");
         n("a{3,2}a", "aaa");
         x2("a{3,2}b", "aaab", 0, 4);
         x2("a{3,2}b", "aaaab", 1, 5);
@@ -1707,7 +1714,11 @@ final class SwiftOnigurumaTests: XCTestCase {
         n("^..(?<=(a{,2}))\\1z", "aaaaz"); // !!! look-behind is shortest priority
         x2("^..(?<=(a{,2}))\\1z", "aaz", 0, 3); // shortest priority
         x2("(?<=(?<= )| )", "abcde fg", 6, 6); // #173
+
+        // swiftlint:disable line_length
         x2("(?<=D|)(?<=@!nnnnnnnnnIIIIn;{1}D?()|<x@x*xxxD|)(?<=@xxx|xxxxx\\g<1>;{1}x)", "(?<=D|)(?<=@!nnnnnnnnnIIIIn;{1}D?()|<x@x*xxxD|)(?<=@xxx|xxxxx\\g<1>;{1}x)", 55, 55); // #173
+        // swiftlint:enable line_length
+
         x2("(?<=;()|)\\g<1>", "", 0, 0); // reduced #173
         x2("(?<=;()|)\\k<1>", ";", 1, 1);
         x2("(())\\g<3>{0}(?<=|())", "abc", 0, 0); // #175
@@ -1814,8 +1825,8 @@ final class SwiftOnigurumaTests: XCTestCase {
         x2("(?i)ssv", "ßv", 0, 3); // U+00DF
         x2("(?i)(?<=ss)v", "SSv", 2, 3);
         x2("(?i)(?<=ß)v", "ßv", 2, 3);
-        //x2("(?i)(?<=ß)v", "ssv", 2, 3);
-        //x2("(?i)(?<=ss)v", "ßv", 2, 3);
+        // x2("(?i)(?<=ß)v", "ssv", 2, 3);
+        // x2("(?i)(?<=ss)v", "ßv", 2, 3);
 
         /* #156 U+01F0 (UTF-8: C7 B0) */
         x2("(?i).+Isssǰ", ".+Isssǰ", 0, 8);

@@ -18,14 +18,17 @@ public enum OnigSearchDirection {
 }
 
 public final class OnigRegularExpression {
-    let regex: OnigRegex
+    internal let pointer: OnigRegex
+    let pattern: String
     let options: OnigOption
+    var includedInASet: Bool
 
     public init(pattern string: String, options: OnigOption = .none) throws {
         Self.initialize()
 
+        pattern = string
         let patternChars = "\(string)\0".utf8.map({ char in UInt8(char) })
-        regex = try patternChars.withUnsafeBufferPointer({ patternPointer in
+        pointer = try patternChars.withUnsafeBufferPointer({ patternPointer in
             var regexPointer: OnigRegex?
             var error = OnigErrorInfo()
 
@@ -45,10 +48,17 @@ public final class OnigRegularExpression {
         })
 
         self.options = options
+        includedInASet = false
     }
 
     deinit {
-        onig_free(regex)
+        if !includedInASet {
+            onig_free(pointer)
+        }
+    }
+
+    internal func register() {
+        includedInASet = true
     }
 
     public func search(in source: String, direction: OnigSearchDirection = .forward) throws-> OnigMatches {
@@ -71,7 +81,7 @@ public final class OnigRegularExpression {
                 range = charsPointer.baseAddress
             }
 
-            let result = onig_search(regex,
+            let result = onig_search(pointer,
                                      charsPointer.baseAddress,
                                      charsPointer.baseAddress?.advanced(by: charsPointer.count - 1),
                                      start,
@@ -89,7 +99,7 @@ public final class OnigRegularExpression {
                 throw StandardError.generic("onig_search failed with error: \(result)")
             }
 
-            return OnigMatches.empty()
+            return .empty()
         })
     }
 
@@ -104,7 +114,7 @@ public final class OnigRegularExpression {
                 return try withUnsafePointer(to: delegate, { delegate in
                     let delegate = UnsafeMutablePointer(mutating: delegate)
 
-                    let matches = onig_scan(regex,
+                    let matches = onig_scan(pointer,
                                             charsPointer.baseAddress,
                                             charsPointer.baseAddress?.advanced(by: charsPointer.count - 1),
                                             region,
